@@ -37,7 +37,7 @@ def create_parameters():
 # Kry gebruiker insette
 start_date, projection_years, parameters = create_parameters()
 
-# Bereken finansiële sleutelsyfers
+# Bereken finansiële sleutelsyfers volgens spreadsheet formules
 parameters["Verwagte Kalf Oes"] = parameters["% Aanteel / Speen %"] / 100 * 400
 parameters["Kalf Mortaliteit Verlies"] = parameters["% Kalf Mortaliteit%"] / 100 * parameters["Verwagte Kalf Oes"]
 parameters["Netto Kalwers"] = parameters["Verwagte Kalf Oes"] - parameters["Kalf Mortaliteit Verlies"]
@@ -61,14 +61,20 @@ st.dataframe(data)
 if st.button("Herbereken Data"):
     st.rerun()
 
-# Plot resultate
-chart_type = st.selectbox("Kies grafiek tipe", ["Lyn Grafiek", "Staaf Grafiek"])
+# Keuse van grafiektipe
+chart_type = st.radio("Kies grafiek tipe", ["Lyn Grafiek", "Staaf Grafiek"])
 selected_metric = st.selectbox("Kies 'n parameter om te vertoon", ["Boerdery Netto", "Japie - Inkomste (Kumulatief)", "Japie Koeie", "Japie Cow Waarde"])
 
+# Grafiekverbeterings met duidelike asetikette
 fig, ax = plt.subplots(figsize=(10, 5))
-ax.set_xlabel("Datum")
-ax.set_ylabel("Waarde in Rand")
-ax.plot(data.index, data[selected_metric], label=selected_metric)
+ax.set_xlabel("Jaar")
+ax.set_ylabel("Bedrag (miljoene N$)")
+
+if chart_type == "Lyn Grafiek":
+    ax.plot(data.index, data[selected_metric] / 1_000_000, label=selected_metric)
+else:
+    ax.bar(data.index, data[selected_metric] / 1_000_000, label=selected_metric)
+
 ax.legend()
 st.pyplot(fig)
 
