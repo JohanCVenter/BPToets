@@ -45,13 +45,19 @@ parameters["Verwagte Inkomste"] = parameters["Netto Kalwers"] * 200 * 40
 parameters["Totale Voerkoste"] = 400 * 15000
 parameters["Netto Wins"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
 
+# Kontantvloei berekening
+parameters["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
+parameters["Japie - Inkomste (Kumulatief)"] = parameters["Boerdery Netto"] * projection_years
+parameters["Japie Koeie"] = 400 * (1 + parameters["% Groei van die kudde (uitbreiding)"] / 100) ** projection_years
+parameters["Japie Cow Waarde"] = parameters["Japie Koeie"] * 15000
+
 # Genereer tydreeks data
 dates = pd.date_range(start=start_date, periods=projection_years * 4, freq='Q')
 data = pd.DataFrame(index=dates)
-data["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
+data["Boerdery Netto"] = [parameters["Boerdery Netto"]] * len(dates)
 data["Japie - Inkomste (Kumulatief)"] = data["Boerdery Netto"].cumsum()
-data["Japie Koeie"] = 400 * (1 + parameters["% Groei van die kudde (uitbreiding)"] / 100) ** (data.index.year - start_date.year)
-data["Japie Cow Waarde"] = data["Japie Koeie"] * 15000
+data["Japie Koeie"] = [parameters["Japie Koeie"]] * len(dates)
+data["Japie Cow Waarde"] = [parameters["Japie Cow Waarde"]] * len(dates)
 
 # Wys resultate
 st.subheader("Finansiële Berekeninge")
