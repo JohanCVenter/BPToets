@@ -54,28 +54,32 @@ def create_parameters():
 start_date, projection_years, parameters = create_parameters()
 
 # Bereken finansiële sleutelsyfers
-parameters["Verwagte Kalf Oes"] = parameters["% Aanteel / Speen %"] / 100 * parameters["Begin Aantal Koeie Sanga"]
-parameters["Kalf Mortaliteit Verlies"] = parameters["% Kalf Mortaliteit%"] / 100 * parameters["Verwagte Kalf Oes"]
-parameters["Netto Kalwers"] = parameters["Verwagte Kalf Oes"] - parameters["Kalf Mortaliteit Verlies"]
-parameters["Verwagte Inkomste"] = parameters["Netto Kalwers"] * parameters["Gewig Kalf met verkoop"] * parameters["Prys Sanga Kalf/kg"]
-parameters["Totale Voerkoste"] = parameters["Begin Aantal Koeie Sanga"] * parameters["Begin Prys Koeie per koei met kalf"]
-parameters["Netto Wins"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
+dates = pd.date_range(start=start_date, periods=projection_years * 4, freq='Q')
+data = pd.DataFrame(index=dates)
+data["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
+data["Japie - Inkomste (Kumulatief)"] = data["Boerdery Netto"].cumsum()
+data["Japie Koeie"] = parameters["Begin Aantal Koeie Sanga"] * (1 + parameters["% Groei van die kudde (uitbreiding)"] / 100) ** (data.index.year - start_date.year)
+data["Japie Cow Waarde"] = data["Japie Koeie"] * parameters["Begin Prys Koeie per koei met kalf"]
 
 # Wys resultate
 st.subheader("Finansiële Berekeninge")
-st.dataframe(pd.DataFrame(parameters, index=["Waarde"]))
+st.dataframe(data)
 
 # Skep knoppie om data te herlaai
 if st.button("Herbereken Data"):
-    st.experimental_rerun()
+    st.rerun()
 
 # Plot resultate
-fig, ax = plt.subplots()
-kategorieë = ["Totale Voerkoste", "Verwagte Inkomste", "Netto Wins"]
-waardes = [parameters["Totale Voerkoste"], parameters["Verwagte Inkomste"], parameters["Netto Wins"]]
-ax.bar(kategorieë, waardes, color=["red", "green", "blue"])
-ax.set_ylabel("Bedrag (N$)")
-ax.set_title("Finansiële Oorsig")
+fig, ax1 = plt.subplots()
+ax2 = ax1.twinx()
+ax1.set_xlabel("Datum")
+ax1.set_ylabel("Rand", color="black")
+ax2.set_ylabel("Koeie", color="blue")
+ax1.plot(data.index, data["Japie - Inkomste (Kumulatief)"], label="Japie - Inkomste (Kumulatief)", color="black")
+ax1.plot(data.index, data["Japie Cow Waarde"], label="Japie Cow Waarde", color="green")
+ax2.plot(data.index, data["Japie Koeie"], label="Japie Koeie", color="blue")
+ax1.legend(loc="upper left")
+ax2.legend(loc="upper right")
 st.pyplot(fig)
 
 # Bykomende insigte
