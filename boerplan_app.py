@@ -1,71 +1,45 @@
-import { useState } from "react";
-import { Line, Bar } from "recharts";
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectItem } from "@/components/ui/select";
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
-const initialParams = {
-  herdGrowthRate: 0.2,
-  calvingRate: 0.8,
-  replacementRate: 0.7,
-  inflationRate: 0.047,
-  cowCost: 14850,
-};
+def calculate_herd_growth(initial_herd=400, herd_growth_rate=0.2, 
+                          inflation_rate=0.047, cow_cost=14850, years=10):
+    herd_size = initial_herd
+    cow_price = cow_cost
+    data = []
+    
+    for year in range(2025, 2025 + years):
+        herd_size *= (1 + herd_growth_rate)
+        cow_price *= (1 + inflation_rate)
+        total_cost = herd_size * cow_price
+        
+        data.append({
+            "Year": year,
+            "Herd Size": round(herd_size),
+            "Cow Cost": round(cow_price),
+            "Total Cost": round(total_cost)
+        })
+    
+    return pd.DataFrame(data)
 
-const calculateData = (params) => {
-  let years = 10;
-  let data = [];
-  let herdSize = 400;
-  let cowCost = params.cowCost;
-  
-  for (let i = 0; i < years; i++) {
-    herdSize *= 1 + params.herdGrowthRate;
-    cowCost *= 1 + params.inflationRate;
-    let totalCost = herdSize * cowCost;
+def plot_herd_growth(df):
+    fig, ax1 = plt.subplots()
+    
+    ax1.set_xlabel("Year")
+    ax1.set_ylabel("Herd Size", color="tab:blue")
+    ax1.plot(df["Year"], df["Herd Size"], marker="o", color="tab:blue", label="Herd Size")
+    ax1.tick_params(axis='y', labelcolor="tab:blue")
+    
+    ax2 = ax1.twinx()
+    ax2.set_ylabel("Total Cost (ZAR)", color="tab:red")
+    ax2.plot(df["Year"], df["Total Cost"], marker="s", color="tab:red", label="Total Cost")
+    ax2.tick_params(axis='y', labelcolor="tab:red")
+    
+    fig.tight_layout()
+    plt.title("Herd Growth & Cost Projection")
+    plt.show()
 
-    data.push({
-      year: 2025 + i,
-      herdSize: Math.round(herdSize),
-      cowCost: Math.round(cowCost),
-      totalCost: Math.round(totalCost),
-    });
-  }
-  return data;
-};
+# Run calculations
+df = calculate_herd_growth()
+plot_herd_growth(df)
 
-export default function BoerPlanApp() {
-  const [params, setParams] = useState(initialParams);
-  const data = calculateData(params);
-
-  return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold">BoerPlan Beta</h1>
-      <Card>
-        <CardContent>
-          <Select
-            onChange={(e) => setParams({ ...params, herdGrowthRate: parseFloat(e.target.value) })}
-          >
-            <SelectItem value="0.1">Herd Growth 10%</SelectItem>
-            <SelectItem value="0.2">Herd Growth 20%</SelectItem>
-            <SelectItem value="0.3">Herd Growth 30%</SelectItem>
-          </Select>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <Line data={data}>
-            <Line type="monotone" dataKey="herdSize" stroke="#8884d8" />
-            <Line type="monotone" dataKey="totalCost" stroke="#82ca9d" />
-          </Line>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <Bar data={data}>
-            <Bar dataKey="herdSize" fill="#8884d8" />
-            <Bar dataKey="totalCost" fill="#82ca9d" />
-          </Bar>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
