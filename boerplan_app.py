@@ -54,6 +54,14 @@ def create_parameters():
 start_date, projection_years, parameters = create_parameters()
 
 # Bereken finansiële sleutelsyfers
+parameters["Verwagte Kalf Oes"] = parameters["% Aanteel / Speen %"] / 100 * parameters["Begin Aantal Koeie Sanga"]
+parameters["Kalf Mortaliteit Verlies"] = parameters["% Kalf Mortaliteit%"] / 100 * parameters["Verwagte Kalf Oes"]
+parameters["Netto Kalwers"] = parameters["Verwagte Kalf Oes"] - parameters["Kalf Mortaliteit Verlies"]
+parameters["Verwagte Inkomste"] = parameters["Netto Kalwers"] * parameters["Gewig Kalf met verkoop"] * parameters["Prys Sanga Kalf/kg"]
+parameters["Totale Voerkoste"] = parameters["Begin Aantal Koeie Sanga"] * parameters["Begin Prys Koeie per koei met kalf"]
+parameters["Netto Wins"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
+
+# Genereer tydreeks data
 dates = pd.date_range(start=start_date, periods=projection_years * 4, freq='Q')
 data = pd.DataFrame(index=dates)
 data["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
