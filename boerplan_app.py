@@ -1,85 +1,90 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import datetime
 
-# Stel app titel
-st.set_page_config(page_title="BoerPlan", layout="wide")
-st.title("BoerPlan - Beta Weergawe")
-
-# Sidebar vir parameter insette
-st.sidebar.header("Verander Parameters")
-
-# Funksie om parameters te skep
-def create_parameters():
-    st.sidebar.subheader("Algemene Parameters")
-    start_date = st.sidebar.date_input("Begin Datum", datetime.date.today())
-    projection_years = st.sidebar.number_input("Projeksie jare", min_value=1, max_value=20, value=10)
+def calculate_projections(params, herd_data, financials, costs):
+    """Perform calculations based on all user parameters."""
+    herd_growth = params['% Groei van die kudde (uitbreiding)']
+    speen_pct = params['% Aanteel / Speen %']
+    vervangings_pct = params['% Vervangings verse (% van Verskalwer Oes)']
+    cpi = params['% CPI']
+    interest_rate = params['% Rente Koers']
+    calf_mortality = params['% Kalf Mortaliteit% ']
+    cow_mortality = params['% Mortaliteit']
+    boer_aanwas_pct = params['% Verdeling met Boer OP AANWAS']
     
-    st.sidebar.subheader("Kuddegroei en Produksie")
-    herd_parameters = {
-        "% Aanteel / Speen %": st.sidebar.slider("Aanteel / Speen %", min_value=50.0, max_value=100.0, value=85.0),
-        "% Bul/Vers Kalf": st.sidebar.slider("Bul/Vers Kalf %", min_value=40.0, max_value=60.0, value=50.0),
-        "% Groei van die kudde (uitbreiding)": st.sidebar.slider("Groei van die kudde %", min_value=0.0, max_value=50.0, value=10.0),
-        "% Kalf Mortaliteit%": st.sidebar.slider("Kalf Mortaliteit %", min_value=1.0, max_value=15.0, value=5.0),
-        "% Mortaliteit": st.sidebar.slider("Mortaliteit %", min_value=1.0, max_value=10.0, value=3.0)
+    # Project herd growth
+    herd_data['Projected Herd'] = herd_data['Current Herd'] * (1 + herd_growth)
+    herd_data['Calves'] = herd_data['Projected Herd'] * speen_pct * (1 - calf_mortality)
+    herd_data['Heifers Retained'] = herd_data['Calves'] * vervangings_pct
+    herd_data['Cull Cows'] = herd_data['Projected Herd'] * params['% Uitskot koeie (uitgesluit mortaliteite)']
+    
+    # Apply farmer's share of herd growth
+    herd_data['Boer Share of Calves'] = herd_data['Calves'] * boer_aanwas_pct
+    herd_data['Boer Share of Heifers'] = herd_data['Heifers Retained'] * boer_aanwas_pct
+    
+    # Financial projections
+    financials['Projected Revenue'] = financials['Inkomste'] * (1 + herd_growth) * boer_aanwas_pct
+    financials['Projected Expenses'] = financials['Maandelikse uitgawes'] * (1 + cpi)
+    financials['Net Cash Flow'] = financials['Projected Revenue'] - financials['Projected Expenses']
+    financials['Interest Cost'] = financials['Net Cash Flow'] * interest_rate
+    
+    # Cost projections
+    costs['Projected Cow Cost'] = costs['Koei koste aankoop'] * (1 + cpi)
+    costs['Projected Bull Cost'] = costs['Bul Koste'] * (1 + cpi)
+    return herd_data, financials, costs
+
+def main():
+    st.title("BoerPlan Beta")
+    
+    # Sidebar inputs
+    st.sidebar.header("Adjust Parameters")
+    param_values = {
+        '% Aanteel / Speen %': st.sidebar.slider("Speen %", 0.0, 1.0, 0.8),
+        '% Groei van die kudde (uitbreiding)': st.sidebar.slider("Herd Growth %", 0.0, 0.5, 0.2),
+        '% Vervangings verse (% van Verskalwer Oes)': st.sidebar.slider("Heifer Replacement %", 0.0, 1.0, 0.7),
+        '% CPI': st.sidebar.slider("CPI %", 0.0, 0.1, 0.047),
+        '% Rente Koers': st.sidebar.slider("Interest Rate %", 0.0, 0.2, 0.05),
+        '% Kalf Mortaliteit% ': st.sidebar.slider("Calf Mortality %", 0.0, 0.2, 0.05),
+        '% Mortaliteit': st.sidebar.slider("Cow Mortality %", 0.0, 0.2, 0.03),
+        '% Uitskot koeie (uitgesluit mortaliteite)': st.sidebar.slider("Cull Cow %", 0.0, 0.2, 0.1),
+        '% Verdeling met Boer OP AANWAS': st.sidebar.slider("Boer Share of Growth %", 0.0, 1.0, 0.5)
     }
     
-    st.sidebar.subheader("Ekonomiese Faktore")
-    economic_parameters = {
-        "% CPI": st.sidebar.number_input("CPI Inflasie %", min_value=0.1, max_value=15.0, value=4.7),
-        "% Rente Koers": st.sidebar.slider("Rente Koers %", min_value=1.0, max_value=20.0, value=8.0),
-        "% Uitgawe verhooging (jaarliks - realisties)": st.sidebar.slider("Jaarlikse Uitgawe Verhoging %", min_value=1.0, max_value=15.0, value=5.0)
-    }
+    # Example datasets
+    herd_data = pd.DataFrame({'Current Herd': [100, 200, 300]})
+    financials = pd.DataFrame({'Inkomste': [500000, 1000000, 1500000], 'Maandelikse uitgawes': [100000, 200000, 300000]})
+    costs = pd.DataFrame({'Koei koste aankoop': [14850, 16038, 17321], 'Bul Koste': [50000, 54000, 58320]})
     
-    return start_date, projection_years, {**herd_parameters, **economic_parameters}
-
-# Kry gebruiker insette
-start_date, projection_years, parameters = create_parameters()
-
-# Bereken finansiële sleutelsyfers volgens spreadsheet formules
-parameters["Verwagte Kalf Oes"] = parameters["% Aanteel / Speen %"] / 100 * 400
-parameters["Kalf Mortaliteit Verlies"] = parameters["% Kalf Mortaliteit%"] / 100 * parameters["Verwagte Kalf Oes"]
-parameters["Netto Kalwers"] = parameters["Verwagte Kalf Oes"] - parameters["Kalf Mortaliteit Verlies"]
-parameters["Verwagte Inkomste"] = parameters["Netto Kalwers"] * 200 * 40
-parameters["Totale Voerkoste"] = 400 * 15000
-parameters["Netto Wins"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
-
-# Genereer tydreeks data
-dates = pd.date_range(start=start_date, periods=projection_years * 4, freq='Q')
-data = pd.DataFrame(index=dates)
-data["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
-data["Japie - Inkomste (Kumulatief)"] = data["Boerdery Netto"].cumsum()
-data["Japie Koeie"] = 400 * (1 + parameters["% Groei van die kudde (uitbreiding)"] / 100) ** (data.index.year - start_date.year)
-data["Japie Cow Waarde"] = data["Japie Koeie"] * 15000
-
-# Wys resultate
-st.subheader("Finansiële Berekeninge")
-st.dataframe(data)
-
-# Knoppie om data te herlaai
-if st.button("Herbereken Data"):
-    st.rerun()
-
-# Keuse van grafiektipe
-chart_type = st.radio("Kies grafiek tipe", ["Lyn Grafiek", "Staaf Grafiek"])
-selected_metrics = st.multiselect("Kies parameters om te vertoon", ["Boerdery Netto", "Japie - Inkomste (Kumulatief)", "Japie Koeie", "Japie Cow Waarde"], default=["Boerdery Netto"])
-
-# Grafiekverbeterings met duidelike asetikette
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.set_xlabel("Jaar")
-ax.set_ylabel("Bedrag (miljoene N$)")
-ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-
-for metric in selected_metrics:
-    if chart_type == "Lyn Grafiek":
-        ax.plot(data.index, data[metric] / 1_000_000, label=metric)
-    else:
-        ax.bar(data.index, data[metric] / 1_000_000, label=metric)
-
-ax.legend()
-st.pyplot(fig)
-
-# Bykomende insigte
-st.subheader("Analise en Vooruitsigte")
-st.write("Hierdie grafiek toon die invloed van jou insette op jou finansiële resultate. Pas die waardes aan en sien hoe die finansiële posisie verander.")
+    # Perform calculations
+    herd_data, financials, costs = calculate_projections(param_values, herd_data, financials, costs)
+    
+    # Display results
+    st.subheader("Projected Herd Growth")
+    st.write(herd_data)
+    
+    st.subheader("Projected Financials")
+    st.write(financials)
+    
+    st.subheader("Projected Costs")
+    st.write(costs)
+    
+    # Charts
+    st.subheader("Herd Growth Projection")
+    plt.figure(figsize=(6, 4))
+    plt.plot(herd_data.index, herd_data['Projected Herd'], marker='o', linestyle='-', label='Projected Herd')
+    plt.xlabel("Year")
+    plt.ylabel("Herd Size")
+    plt.legend()
+    st.pyplot(plt)
+    
+    st.subheader("Cash Flow Projection")
+    plt.figure(figsize=(6, 4))
+    plt.plot(financials.index, financials['Net Cash Flow'], marker='o', linestyle='-', label='Net Cash Flow', color='green')
+    plt.xlabel("Year")
+    plt.ylabel("Cash Flow")
+    plt.legend()
+    st.pyplot(plt)
+    
+if __name__ == "__main__":
+    main()
