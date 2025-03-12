@@ -13,7 +13,7 @@ def calculate_projections(params, herd_data, financials, costs):
     cow_mortality = params['% Mortaliteit']
     boer_aanwas_pct = params['% Verdeling met Boer OP AANWAS']
     
-    # Project herd growth
+    # Project herd growth (based on Kuddevloei sheet formulas)
     herd_data['Projected Herd'] = herd_data['Current Herd'] * (1 + herd_growth)
     herd_data['Calves'] = herd_data['Projected Herd'] * speen_pct * (1 - calf_mortality)
     herd_data['Heifers Retained'] = herd_data['Calves'] * vervangings_pct
@@ -23,15 +23,18 @@ def calculate_projections(params, herd_data, financials, costs):
     herd_data['Boer Share of Calves'] = herd_data['Calves'] * boer_aanwas_pct
     herd_data['Boer Share of Heifers'] = herd_data['Heifers Retained'] * boer_aanwas_pct
     
-    # Financial projections
+    # Financial projections (based on Kontantvloei formulas)
     financials['Projected Revenue'] = financials['Inkomste'] * (1 + herd_growth) * boer_aanwas_pct
     financials['Projected Expenses'] = financials['Maandelikse uitgawes'] * (1 + cpi)
     financials['Net Cash Flow'] = financials['Projected Revenue'] - financials['Projected Expenses']
     financials['Interest Cost'] = financials['Net Cash Flow'] * interest_rate
     
-    # Cost projections
+    # Cost projections (based on Bewaarkoste formulas)
     costs['Projected Cow Cost'] = costs['Koei koste aankoop'] * (1 + cpi)
     costs['Projected Bull Cost'] = costs['Bul Koste'] * (1 + cpi)
+    costs['Bull Cost Per Cow'] = costs['Projected Bull Cost'] / 25  # Assumes 1 bull per 25 cows
+    costs['Total Maintenance Cost'] = costs['Projected Cow Cost'] + costs['Bull Cost Per Cow']
+    
     return herd_data, financials, costs
 
 def main():
