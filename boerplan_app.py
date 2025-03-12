@@ -45,19 +45,13 @@ parameters["Verwagte Inkomste"] = parameters["Netto Kalwers"] * 200 * 40
 parameters["Totale Voerkoste"] = 400 * 15000
 parameters["Netto Wins"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
 
-# Kontantvloei berekening
-parameters["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
-parameters["Japie - Inkomste (Kumulatief)"] = parameters["Boerdery Netto"] * projection_years
-parameters["Japie Koeie"] = 400 * (1 + parameters["% Groei van die kudde (uitbreiding)"] / 100) ** projection_years
-parameters["Japie Cow Waarde"] = parameters["Japie Koeie"] * 15000
-
 # Genereer tydreeks data
 dates = pd.date_range(start=start_date, periods=projection_years * 4, freq='Q')
 data = pd.DataFrame(index=dates)
-data["Boerdery Netto"] = [parameters["Boerdery Netto"]] * len(dates)
+data["Boerdery Netto"] = parameters["Verwagte Inkomste"] - parameters["Totale Voerkoste"]
 data["Japie - Inkomste (Kumulatief)"] = data["Boerdery Netto"].cumsum()
-data["Japie Koeie"] = [parameters["Japie Koeie"]] * len(dates)
-data["Japie Cow Waarde"] = [parameters["Japie Cow Waarde"]] * len(dates)
+data["Japie Koeie"] = 400 * (1 + parameters["% Groei van die kudde (uitbreiding)"] / 100) ** (data.index.year - start_date.year)
+data["Japie Cow Waarde"] = data["Japie Koeie"] * 15000
 
 # Wys resultate
 st.subheader("Finansiële Berekeninge")
@@ -69,17 +63,19 @@ if st.button("Herbereken Data"):
 
 # Keuse van grafiektipe
 chart_type = st.radio("Kies grafiek tipe", ["Lyn Grafiek", "Staaf Grafiek"])
-selected_metric = st.selectbox("Kies 'n parameter om te vertoon", ["Boerdery Netto", "Japie - Inkomste (Kumulatief)", "Japie Koeie", "Japie Cow Waarde"])
+selected_metrics = st.multiselect("Kies parameters om te vertoon", ["Boerdery Netto", "Japie - Inkomste (Kumulatief)", "Japie Koeie", "Japie Cow Waarde"], default=["Boerdery Netto"])
 
 # Grafiekverbeterings met duidelike asetikette
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.set_xlabel("Jaar")
 ax.set_ylabel("Bedrag (miljoene N$)")
+ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
-if chart_type == "Lyn Grafiek":
-    ax.plot(data.index, data[selected_metric] / 1_000_000, label=selected_metric)
-else:
-    ax.bar(data.index, data[selected_metric] / 1_000_000, label=selected_metric)
+for metric in selected_metrics:
+    if chart_type == "Lyn Grafiek":
+        ax.plot(data.index, data[metric] / 1_000_000, label=metric)
+    else:
+        ax.bar(data.index, data[metric] / 1_000_000, label=metric)
 
 ax.legend()
 st.pyplot(fig)
